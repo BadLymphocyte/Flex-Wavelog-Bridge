@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  flex-wavelog-bridge:
+    build: .
+    container_name: flex-wavelog-bridge
+    volumes:
+      - ./config:/config
+      - ./logs:/logs
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/config/config.json
+      - LOG_DIR=/logs
+    networks:
+      - nginx-proxy-manager-network
+
+networks:
+  nginx-proxy-manager-network:
+    external: true
