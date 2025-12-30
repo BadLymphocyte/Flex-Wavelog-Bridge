@@ -24,7 +24,7 @@ After deployment, you need to create the config file manually:
 # SSH into your Docker host
 ssh user@your-docker-host
 
-# Navigate to the stack's volume
+# Navigate to the stack's volume - THIS MIGHT BE WRONG. CHECK CONTAINER SETTINGS TO SEE CORRECT PATH TO VOLUME.
 cd /var/lib/docker/volumes/flex-wavelog-bridge_config/_data
 
 # Create config.json
