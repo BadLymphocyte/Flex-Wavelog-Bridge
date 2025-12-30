@@ -32,11 +32,11 @@ Create `config/config.json`:
 ```json
 {
     "flex": {
-        "ip": "192.168.25.179",
+        "ip": "YOUR_FLEX_RADIO_IP",
         "port": 4992
     },
     "wavelog": {
-        "url": "http://wavelog",
+        "url": "http://YOUR_WAVELOG_URL",
         "api_key": "YOUR_WAVELOG_API_KEY",
         "radio_id": "1"
     }
