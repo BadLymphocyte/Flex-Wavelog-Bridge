@@ -175,6 +175,8 @@ class FlexRadioMonitor:
                 return False
             
             freq_mhz = float(freq_match.group(1))
+            # Convert MHz to kHz for Wavelog (Wavelog expects frequency in kHz)
+            freq_khz = freq_mhz * 1000
             
             # Convert mode
             wavelog_mode = self.convert_mode_for_wavelog(mode_str)
@@ -189,16 +191,16 @@ class FlexRadioMonitor:
             data = {
                 'key': self.wavelog_api_key,
                 'radio': self.wavelog_radio_id,
-                'frequency': freq_mhz,
+                'frequency': freq_khz,
                 'mode': wavelog_mode
             }
             
             response = requests.post(url, headers=headers, json=data, timeout=2)
             
             if response.status_code == 200:
-                msg = f"✓ Pushed to Wavelog - Frequency: {freq_str}, Mode: {mode_str} ({wavelog_mode})"
+                msg = f"✓ Pushed to Wavelog - Frequency: {freq_str} ({freq_khz} kHz), Mode: {mode_str} ({wavelog_mode})"
                 print(msg)
-                self.logger.info(f"Pushed to Wavelog - Frequency: {freq_str}, Mode: {mode_str} ({wavelog_mode})")
+                self.logger.info(f"Pushed to Wavelog - Frequency: {freq_str} ({freq_khz} kHz), Mode: {mode_str} ({wavelog_mode})")
                 return True
             else:
                 msg = f"✗ Wavelog API error: {response.status_code} - {response.text}"
@@ -311,7 +313,7 @@ def load_config():
                 "port": 4992
             },
             "wavelog": {
-                "url": "http://localhost:80",
+                "url": "http://wavelog:8086",
                 "api_key": "YOUR_API_KEY_HERE",
                 "radio_id": "1"
             }
