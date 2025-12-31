@@ -25,13 +25,26 @@ class FlexRadioMonitor:
         self.logger = logger
         self.flex_ip = config['flex']['ip']
         self.flex_port = config['flex']['port']
+        self.flex_slice = config['flex'].get('slice', 'A').upper()  # Default to 'A'
         self.wavelog_url = config['wavelog']['url']
         self.wavelog_api_key = config['wavelog']['api_key']
         self.wavelog_radio_id = config['wavelog']['radio_id']
         
+        # Validate slice letter
+        if self.flex_slice not in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']:
+            self.logger.error(f"Invalid slice '{self.flex_slice}'. Must be A-H. Defaulting to A.")
+            self.flex_slice = 'A'
+        
+        # Map slice letters to numeric IDs (Flex uses 0-7)
+        self.slice_letter_to_id = {
+            'A': '0', 'B': '1', 'C': '2', 'D': '3',
+            'E': '4', 'F': '5', 'G': '6', 'H': '7'
+        }
+        self.target_slice_id = self.slice_letter_to_id[self.flex_slice]
+        
         self.sock = None
         self.handle = None
-        self.slice_a_info = {"frequency": "Unknown", "mode": "Unknown"}
+        self.slice_info = {"frequency": "Unknown", "mode": "Unknown"}
         self.slice_id = None
         
     def connect(self):
@@ -43,6 +56,7 @@ class FlexRadioMonitor:
             msg = f"Connected to Flex radio at {self.flex_ip}:{self.flex_port}"
             print(msg)
             self.logger.info(msg)
+            self.logger.info(f"Monitoring Slice {self.flex_slice} (ID: {self.target_slice_id})")
             
             # Receive initial connection message
             response = self.receive_response()
@@ -107,12 +121,12 @@ class FlexRadioMonitor:
         if len(parts) >= 2:
             slice_id = parts[1]
             
-            # Check if this is slice A (usually id 0) or if it's explicitly labeled A
-            # Store the first slice we see as slice A
-            if self.slice_id is None:
-                self.slice_id = slice_id
-            
-            if slice_id == self.slice_id:
+            # Only monitor the configured slice
+            if slice_id == self.target_slice_id:
+                if self.slice_id is None:
+                    self.slice_id = slice_id
+                    self.logger.info(f"Locked onto Slice {self.flex_slice} (ID: {slice_id})")
+                
                 changed = False
                 
                 # Parse key=value pairs
@@ -124,8 +138,8 @@ class FlexRadioMonitor:
                     if freq_match:
                         freq_mhz = float(freq_match.group(1))
                         new_freq = f"{freq_mhz:.6f} MHz"
-                        if new_freq != self.slice_a_info["frequency"]:
-                            self.slice_a_info["frequency"] = new_freq
+                        if new_freq != self.slice_info["frequency"]:
+                            self.slice_info["frequency"] = new_freq
                             changed = True
                     
                     # Extract mode - ignore OFF state
@@ -133,8 +147,8 @@ class FlexRadioMonitor:
                     if mode_match:
                         mode = mode_match.group(1)
                         # Only update mode if it's not OFF (keeps last valid mode)
-                        if mode != "OFF" and mode != self.slice_a_info["mode"]:
-                            self.slice_a_info["mode"] = mode
+                        if mode != "OFF" and mode != self.slice_info["mode"]:
+                            self.slice_info["mode"] = mode
                             changed = True
                 
                 # Push to Wavelog if something changed
@@ -144,8 +158,8 @@ class FlexRadioMonitor:
     def convert_mode_for_wavelog(self, mode):
         """Convert Flex mode names to Wavelog-compatible format"""
         mode_map = {
-            'USB': 'USB',
-            'LSB': 'LSB',
+            'USB': 'SSB',
+            'LSB': 'SSB',
             'CW': 'CW',
             'CWL': 'CW',
             'AM': 'AM',
@@ -162,8 +176,8 @@ class FlexRadioMonitor:
     def push_to_wavelog(self):
         """Push current frequency and mode to Wavelog"""
         # Extract numeric frequency value
-        freq_str = self.slice_a_info["frequency"]
-        mode_str = self.slice_a_info["mode"]
+        freq_str = self.slice_info["frequency"]
+        mode_str = self.slice_info["mode"]
         
         if freq_str == "Unknown" or mode_str == "Unknown":
             return False
@@ -199,9 +213,9 @@ class FlexRadioMonitor:
             response = requests.post(url, headers=headers, json=data, timeout=2)
             
             if response.status_code == 200:
-                msg = f"✓ Pushed to Wavelog - Frequency: {freq_str} ({freq_hz} Hz), Mode: {mode_str} ({wavelog_mode})"
+                msg = f"✓ Pushed to Wavelog - Slice {self.flex_slice}: Frequency: {freq_str} ({freq_hz} Hz), Mode: {mode_str} ({wavelog_mode})"
                 print(msg)
-                self.logger.info(f"Pushed to Wavelog - Frequency: {freq_str} ({freq_hz} Hz), Mode: {mode_str} ({wavelog_mode})")
+                self.logger.info(f"Pushed to Wavelog - Slice {self.flex_slice}: Frequency: {freq_str} ({freq_hz} Hz), Mode: {mode_str} ({wavelog_mode})")
                 return True
             else:
                 msg = f"✗ Wavelog API error: {response.status_code} - {response.text}"
@@ -222,9 +236,9 @@ class FlexRadioMonitor:
     
     def monitor_loop(self):
         """Main monitoring loop"""
-        msg = "\nMonitoring Slice A and pushing to Wavelog on changes (Press Ctrl+C to stop)...\n"
+        msg = f"\nMonitoring Slice {self.flex_slice} and pushing to Wavelog on changes (Press Ctrl+C to stop)...\n"
         print(msg)
-        self.logger.info("Monitoring started")
+        self.logger.info(f"Monitoring Slice {self.flex_slice} started")
         
         # Initial subscription
         self.send_command("sub slice all")
@@ -311,7 +325,8 @@ def load_config():
         example_config = {
             "flex": {
                 "ip": "192.168.25.179",
-                "port": 4992
+                "port": 4992,
+                "slice": "A"
             },
             "wavelog": {
                 "url": "http://wavelog:8086",
@@ -353,6 +368,13 @@ def load_config():
                     print(f"✗ Missing '{field}' in '{section}' section")
                     sys.exit(1)
         
+        # Validate slice if provided
+        if 'slice' in config['flex']:
+            slice_letter = config['flex']['slice'].upper()
+            if slice_letter not in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']:
+                print(f"✗ Invalid slice '{slice_letter}'. Must be A-H.")
+                sys.exit(1)
+        
         # Check if API key needs to be configured
         if config['wavelog']['api_key'] == "YOUR_API_KEY_HERE":
             print("⚠️  WARNING: Wavelog API key not configured!")
@@ -388,11 +410,12 @@ def main():
     
     print(f"\nConfiguration:")
     print(f"  Flex Radio: {config['flex']['ip']}:{config['flex']['port']}")
+    print(f"  Flex Slice: {config['flex'].get('slice', 'A')}")
     print(f"  Wavelog:    {config['wavelog']['url']}")
     print(f"  Radio ID:   {config['wavelog']['radio_id']}")
     print(f"  Log file:   {LOG_FILE}")
     
-    logger.info(f"Configuration loaded - Flex: {config['flex']['ip']}:{config['flex']['port']}, Wavelog: {config['wavelog']['url']}")
+    logger.info(f"Configuration loaded - Flex: {config['flex']['ip']}:{config['flex']['port']}, Slice: {config['flex'].get('slice', 'A')}, Wavelog: {config['wavelog']['url']}")
     
     monitor = FlexRadioMonitor(config, logger)
     
