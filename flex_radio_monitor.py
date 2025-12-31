@@ -158,8 +158,8 @@ class FlexRadioMonitor:
     def convert_mode_for_wavelog(self, mode):
         """Convert Flex mode names to Wavelog-compatible format"""
         mode_map = {
-            'USB': 'USB',
-            'LSB': 'LSB',
+            'USB': 'SSB',
+            'LSB': 'SSB',
             'CW': 'CW',
             'CWL': 'CW',
             'AM': 'AM',
@@ -280,14 +280,17 @@ class FlexRadioMonitor:
             except:
                 pass
 
-def setup_logging():
+def setup_logging(log_level='INFO'):
     """Setup logging to file and console"""
     # Create logs directory if it doesn't exist
     os.makedirs(LOG_DIR, exist_ok=True)
     
+    # Convert string log level to logging constant
+    numeric_level = getattr(logging, log_level.upper(), logging.INFO)
+    
     # Create logger
     logger = logging.getLogger('FlexWavelogBridge')
-    logger.setLevel(logging.INFO)
+    logger.setLevel(numeric_level)
     
     # Create formatters
     file_formatter = logging.Formatter(
@@ -302,12 +305,12 @@ def setup_logging():
         maxBytes=10*1024*1024,  # 10MB
         backupCount=5
     )
-    file_handler.setLevel(logging.INFO)
+    file_handler.setLevel(numeric_level)
     file_handler.setFormatter(file_formatter)
     
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(numeric_level)
     console_handler.setFormatter(console_formatter)
     
     # Add handlers
@@ -332,6 +335,9 @@ def load_config():
                 "url": "http://wavelog:8086",
                 "api_key": "YOUR_API_KEY_HERE",
                 "radio_id": "1"
+            },
+            "logging": {
+                "level": "INFO"
             }
         }
         
@@ -375,6 +381,14 @@ def load_config():
                 print(f"✗ Invalid slice '{slice_letter}'. Must be A-H.")
                 sys.exit(1)
         
+        # Validate log level if provided
+        if 'logging' in config and 'level' in config['logging']:
+            log_level = config['logging']['level'].upper()
+            valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+            if log_level not in valid_levels:
+                print(f"✗ Invalid log level '{log_level}'. Must be one of: {', '.join(valid_levels)}")
+                sys.exit(1)
+        
         # Check if API key needs to be configured
         if config['wavelog']['api_key'] == "YOUR_API_KEY_HERE":
             print("⚠️  WARNING: Wavelog API key not configured!")
@@ -399,23 +413,27 @@ def main():
     print("Flex Radio to Wavelog Bridge")
     print("=" * 60)
     
-    # Setup logging
-    logger = setup_logging()
+    # Load configuration first
+    config = load_config()
+    
+    # Get log level from config, default to INFO
+    log_level = config.get('logging', {}).get('level', 'INFO')
+    
+    # Setup logging with configured level
+    logger = setup_logging(log_level)
     logger.info("=" * 60)
     logger.info("Flex Radio to Wavelog Bridge - Starting")
     logger.info("=" * 60)
-    
-    # Load configuration
-    config = load_config()
     
     print(f"\nConfiguration:")
     print(f"  Flex Radio: {config['flex']['ip']}:{config['flex']['port']}")
     print(f"  Flex Slice: {config['flex'].get('slice', 'A')}")
     print(f"  Wavelog:    {config['wavelog']['url']}")
     print(f"  Radio ID:   {config['wavelog']['radio_id']}")
+    print(f"  Log Level:  {log_level}")
     print(f"  Log file:   {LOG_FILE}")
     
-    logger.info(f"Configuration loaded - Flex: {config['flex']['ip']}:{config['flex']['port']}, Slice: {config['flex'].get('slice', 'A')}, Wavelog: {config['wavelog']['url']}")
+    logger.info(f"Configuration loaded - Flex: {config['flex']['ip']}:{config['flex']['port']}, Slice: {config['flex'].get('slice', 'A')}, Wavelog: {config['wavelog']['url']}, Log Level: {log_level}")
     
     monitor = FlexRadioMonitor(config, logger)
     
