@@ -144,8 +144,8 @@ class FlexRadioMonitor:
     def convert_mode_for_wavelog(self, mode):
         """Convert Flex mode names to Wavelog-compatible format"""
         mode_map = {
-            'USB': 'SSB',
-            'LSB': 'SSB',
+            'USB': 'USB',
+            'LSB': 'LSB',
             'CW': 'CW',
             'CWL': 'CW',
             'AM': 'AM',
