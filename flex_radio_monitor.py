@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Flex Radio Slice A Monitor with Wavelog Integration
+Flex Radio Slice Monitor with Wavelog Integration
 Connects to a Flex radio and pushes frequency/mode to Wavelog
 """
 
@@ -327,7 +327,7 @@ def load_config():
         
         example_config = {
             "flex": {
-                "ip": "192.168.25.179",
+                "ip": "192.168.5.19",
                 "port": 4992,
                 "slice": "A"
             },
