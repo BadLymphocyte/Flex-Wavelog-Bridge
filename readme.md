@@ -1,3 +1,5 @@
+# THIS TOOL WAS ALMOST ENTIRELY VIBE CODED AND VIBE DOCUMENTED BY CLAUDE SONNET 4.5. I'VE SKIMMED THE CODE AND UPDATED THE DOCS A BIT BUT THAT'S ALL. MY GOAL WAS A FUNCTIONAL TOOL AND THE TOOL IS FUNCTIONAL.
+
 # Flex Radio to Wavelog Bridge (Docker)
 
 This Docker container bridges your Flex radio to Wavelog, automatically pushing frequency and mode changes.
