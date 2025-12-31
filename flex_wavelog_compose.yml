@@ -4,6 +4,8 @@ services:
   flex-wavelog-bridge:
     build: .
     container_name: flex-wavelog-bridge
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
     volumes:
       - ./config:/config
       - ./logs:/logs
