@@ -32,24 +32,42 @@ Create `config/config.json`:
 ```json
 {
     "flex": {
-        "ip": "YOUR_FLEX_RADIO_IP",
-        "port": 4992
+        "ip": "192.168.1.209",
+        "port": 4992,
+        "slice": "A"
     },
     "wavelog": {
-        "url": "http://YOUR_WAVELOG_URL",
+        "url": "http://wavelog:8086",
         "api_key": "YOUR_WAVELOG_API_KEY",
         "radio_id": "1"
+    },
+    "logging": {
+        "level": "INFO"
     }
 }
 ```
 
-**Important:** Update the values:
-- `flex.ip` - Your Flex radio IP address (must be accessible from Docker host)
-- `wavelog.url` - Your Wavelog container name (e.g., `http://wavelog` or `http://wavelog-container-name`) since they're on the same Docker network
-- `wavelog.api_key` - Get from Wavelog: Options → API
-- `wavelog.radio_id` - Usually "1" for the first radio
+**Configuration Options:**
 
-**Note:** Since Wavelog is on the same `nginx-proxy-manager-network`, you can use the Wavelog container name directly (e.g., `http://wavelog` or `http://wavelog:80`). Check your Wavelog container name with `docker ps`.
+**Flex Radio Settings:**
+- `ip` - Your Flex radio IP address (must be accessible from Docker host)
+- `port` - Flex radio API port (default: 4992)
+- `slice` - Which slice to monitor: A, B, C, D, E, F, G, or H (default: A)
+
+**Wavelog Settings:**
+- `url` - Your Wavelog container name (e.g., `http://wavelog` or `http://wavelog-container-name`) since they're on the same Docker network
+- `api_key` - Get from Wavelog: Options → API
+- `radio_id` - Radio ID in Wavelog (usually "1")
+
+**Logging Settings (optional):**
+- `level` - Log verbosity level (default: INFO)
+  - `DEBUG` - Very detailed, useful for troubleshooting
+  - `INFO` - Normal operation (recommended)
+  - `WARNING` - Only warnings and errors
+  - `ERROR` - Only errors and critical issues
+  - `CRITICAL` - Only critical failures
+
+**Note:** If Wavelog is on the same docker network as the Flex-Wavelog-Bridge container, you can use the Wavelog container name directly (e.g., `http://wavelog` or `http://wavelog:80`). Check your Wavelog container name and network with `docker ps`.
 
 ### 5. Build and Run
 
@@ -150,15 +168,21 @@ docker-compose logs
 # - Config file not found: Make sure config/config.json exists
 # - Invalid JSON: Validate your config.json syntax
 # - Missing API key: Set your Wavelog API key in config.json
+# - Invalid slice: Must be A, B, C, D, E, F, G, or H
+# - Invalid log level: Must be DEBUG, INFO, WARNING, ERROR, or CRITICAL
 ```
 
 ### Can't connect to Flex radio
 ```bash
 # Verify Flex radio IP
-ping 192.168.25.179
+ping 192.168.1.209
 
 # Check if port 4992 is accessible
-telnet 192.168.25.179 4992
+telnet 192.168.1.209 4992
+
+# Verify slice is active
+# - Make sure the slice you configured (A-H) is actually active on the radio
+# - Check SmartSDR to see which slices are in use
 ```
 
 ### Can't connect to Wavelog
@@ -206,7 +230,7 @@ This container connects to the `nginx-proxy-manager-network` Docker network, whi
 - If Wavelog container is named `wavelog`: `http://wavelog`
 - If Wavelog container is named `wavelog-app`: `http://wavelog-app`
 - With port: `http://wavelog:80` or `http://wavelog:8080`
-
+  
 ## Updating Configuration
 
 1. Edit `config/config.json`
@@ -214,20 +238,73 @@ This container connects to the `nginx-proxy-manager-network` Docker network, whi
 
 The config directory is mounted as a volume, so changes persist across container restarts.
 
-## Getting Wavelog API Key
+**What can be changed without rebuilding:**
+- Flex radio IP address
+- Flex slice (A-H)
+- Wavelog URL
+- Wavelog API key
+- Radio ID
+- Log level
 
-1. Log into your Wavelog instance
-2. Navigate to **Options → API**
-3. Copy your API key
-4. Paste it into `config/config.json` under `wavelog.api_key`
+Just edit the config file and restart - no rebuild needed!# Flex Radio to Wavelog Bridge (Docker)
+
+## Configuration Examples
+
+### Monitor Different Slices
+
+The Flex radio supports up to 8 slices (A through H). You can monitor any slice by changing the configuration:
+
+**Monitor Slice A (default):**
+```json
+"flex": {
+    "ip": "192.168.1.209",
+    "port": 4992,
+    "slice": "A"
+}
+```
+
+**Monitor Slice B:**
+```json
+"flex": {
+    "ip": "192.168.1.209",
+    "port": 4992,
+    "slice": "B"
+}
+```
+
+### Adjust Logging Verbosity
+
+**Normal operation (recommended):**
+```json
+"logging": {
+    "level": "INFO"
+}
+```
+
+**Troubleshooting (detailed logs):**
+```json
+"logging": {
+    "level": "DEBUG"
+}
+```
+
+**Quiet mode (errors only):**
+```json
+"logging": {
+    "level": "ERROR"
+}
+```
 
 ## Features
 
 - ✓ Automatic reconnection on failure
 - ✓ Real-time frequency and mode updates
+- ✓ Configurable slice monitoring (A-H)
 - ✓ Minimal resource usage
 - ✓ Persistent configuration
 - ✓ Persistent logging with automatic rotation
+- ✓ Configurable log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - ✓ Easy updates via config file
 - ✓ Automatic restart with `unless-stopped`
 - ✓ Detailed logging to file and console
+- ✓ Event-driven updates (no polling delay)
