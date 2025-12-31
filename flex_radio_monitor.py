@@ -215,7 +215,7 @@ class FlexRadioMonitor:
             if response.status_code == 200:
                 msg = f"✓ Pushed to Wavelog - Slice {self.flex_slice}: Frequency: {freq_str} ({freq_hz} Hz), Mode: {mode_str} ({wavelog_mode})"
                 print(msg)
-                self.logger.info(f"Pushed to Wavelog - Slice {self.flex_slice}: Frequency: {freq_str} ({freq_hz} Hz), Mode: {mode_str} ({wavelog_mode})")
+                self.logger.debug(f"Pushed to Wavelog - Slice {self.flex_slice}: Frequency: {freq_str} ({freq_hz} Hz), Mode: {mode_str} ({wavelog_mode})")
                 return True
             else:
                 msg = f"✗ Wavelog API error: {response.status_code} - {response.text}"
